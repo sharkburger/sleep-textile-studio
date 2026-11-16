@@ -39,7 +39,7 @@ footer{padding:0 4vw 25px;color:#666;font-size:12px}
 </style>
 </head>
 <body>
-<header><div><div class="tag">THE FABRIC SERIES / 02</div><h1>The Fabric of a Dream</h1><div class="muted">Sleep Textile Studio · Design with the rhythms of your night</div></div><small>LOCAL FIRST<br>RESEARCH PROTOTYPE</small></header>
+<header><div><div class="tag">THE FABRIC SERIES / 02</div><h1>The Fabric of a Dream</h1><div class="muted">Sleep Textile Studio · Design with the rhythms of your night</div></div><small>LOCAL FIRST<br>RESEARCH PROTOTYPE · V2.1</small></header>
 <main>
 <section>
   <h2>01 / Your night</h2>
@@ -62,14 +62,14 @@ footer{padding:0 4vw 25px;color:#666;font-size:12px}
   </select>
   <label>Pattern language</label>
   <select id="mapping">
-    <option value="motifs">Stage / value motifs</option>
+    <option value="solid">Solid color bands</option><option value="motifs" selected>Stage / value motifs</option>
     <option value="width">Mirrored silhouette</option>
     <option value="wave">Waves</option>
     <option value="density">Dither density</option>
     <option value="stripes">Rhythmic stripes</option>
     <option value="custom">My pixel motif</option>
   </select>
-  <label>Stage identity · choose each motif</label>
+  <label>Sleep stage · choose a motif for each state</label><p class="muted">Choose solid, stripes, diamonds, waves or a custom motif independently for each stage. Select Stage / value motifs above to use these assignments.</p>
   <div id="stages" class="stage"></div>
   <label>Pattern strength <span id="strengthValue"></span></label>
   <input id="strength" type="range" min="0" max="100" value="75">
@@ -90,7 +90,7 @@ footer{padding:0 4vw 25px;color:#666;font-size:12px}
 
   <label>Color strategy</label>
   <select id="colorMode">
-    <option value="stage4">4-color sleep palette</option>
+    <option value="stage4">Sleep stage colors + background (up to 5 yarns)</option>
     <option value="binary">2-color high contrast</option>
     <option value="levels4">4-color quantized values</option>
   </select>
@@ -100,7 +100,7 @@ footer{padding:0 4vw 25px;color:#666;font-size:12px}
     <button id="swapBinary">Swap yarn colors</button>
   </div>
 
-  <div id="stageColors">
+  <div id="stageColors"><p class="muted">Assign any yarn color to each sleep state. For color-only encoding select Solid color bands; for color + pattern select Stage / value motifs.</p><label>Background yarn</label><input type="color" id="bg" value="#f2efe8">
     <div class="grid4">
       <div><label>Deep</label><input type="color" id="c1" value="#1f3a93"></div>
       <div><label>Light</label><input type="color" id="c2" value="#5f7ddb"></div>
@@ -109,7 +109,7 @@ footer{padding:0 4vw 25px;color:#666;font-size:12px}
     </div>
   </div>
 
-  <div id="levelColors" class="hide">
+  <div id="levelColors" class="hide"><label>Background yarn</label><input type="color" id="qbg" value="#f2efe8">
     <div class="grid4">
       <div><label>Level 1</label><input type="color" id="q1" value="#ece7da"></div>
       <div><label>Level 2</label><input type="color" id="q2" value="#bcc0db"></div>
@@ -146,7 +146,7 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 let sessions=[],current=null,pixels=[],motif=Array(256).fill(0),valid=false;
 const stageNames=['Missing','Deep','Light','REM','Awake'];
 const defaultStagePatterns=['diamond','dots','wave','bars'];
-for(let i=1;i<=4;i++)$('stages').insertAdjacentHTML('beforeend',`<label>${stageNames[i]}<select id="s${i}">${['diamond','dots','wave','bars','checker'].map((p,j)=>`<option ${j===i-1?'selected':''}>${p}</option>`).join('')}</select></label>`);
+for(let i=1;i<=4;i++)$('stages').insertAdjacentHTML('beforeend',`<label>${stageNames[i]}<select id="s${i}">${['diamond','dots','wave','bars','checker','solid','cross','custom'].map((p,j)=>`<option ${j===i-1?'selected':''}>${p}</option>`).join('')}</select></label>`);
 
 function synthetic(){
   let phase='444'+'2221111112222333'+'22211112223333'+'42222211122233333'+'222233333222224'+'2222333333332222'+'222333332224444';
@@ -235,6 +235,9 @@ function values(){
 function pattern(name,x,y,z){
   let u=x/z,v=y/z;
   switch(name){
+    case 'solid': return true;
+    case 'custom': return !!motif[(Math.floor(y/Math.max(1,z/4))%16)*16+Math.floor(x/Math.max(1,z/4))%16];
+    case 'cross': return Math.abs(u%2-1)<.23 || Math.abs(v%2-1)<.23;
     case 'diamond': return Math.abs(u%2-1)+Math.abs(v%2-1)<.72;
     case 'dots': return (u%1-.5)**2+(v%1-.5)**2<.12;
     case 'wave': return Math.abs((u+.45*Math.sin(v*3))%2-1)<.45;
@@ -255,6 +258,7 @@ function updateColorUI(){
 function render(){
   updateColorUI();
   if(!current) return;
+  $('event').disabled=$('feature').value==='summary';
   let a=values(), w=Math.round(+$('w').value*+$('gw').value/10), h=Math.round(+$('l').value*+$('gh').value/10);
   valid=w>=8&&w<=252&&h>=16&&h<=4000&&a.length>0;
   $('export').disabled=$('test').disabled=!valid;
@@ -287,7 +291,8 @@ function render(){
       let idx=0, on=false;
       if(r.v===null){ idx=(Math.floor(x/2)+Math.floor(y/2))%2===0 ? 1 : 0; }
       else {
-        if(m==='motifs') on=pattern((f==='stage'||f==='summary')?$('s'+r.s).value:defaultStagePatterns[Math.min(3,Math.floor(v*4))],x,y,z*(1.35-.7*v));
+        if(m==='solid') on=true;
+        else if(m==='motifs') on=pattern((f==='stage'||f==='summary')?$('s'+r.s).value:defaultStagePatterns[Math.min(3,Math.floor(v*4))],x,y,(f==='stage'||f==='summary')?z:z*(1.35-.7*v));
         else if(m==='width') on=Math.abs(x-(w-1)/2)<w*(.05+.42*v);
         else if(m==='wave') on=Math.abs(x-w/2-Math.sin(y/z/3)*w*.38*v)<Math.max(1,w*.08);
         else if(m==='density') on=((x*37+y*71+x*y*13)%101)/101<v;
@@ -302,22 +307,23 @@ function render(){
           idx=on?quant4(v):0;
         }
       }
-      if(ev!==null && Math.abs(t-ev)<2/h) idx=(x%4)<2 ? Math.max(1,idx) : 0;
-      if(x<b||x>=w-b) idx=colorMode==='binary'?1:Math.max(1,idx);
+      if(f!=='summary' && ev!==null && Math.abs(t-ev)<2/h) idx=(x%4)<2 ? Math.max(1,idx) : 0;
+      if(x<b||x>=w-b) idx=0;
       pixels[y*w+x]=idx;
     }
   }
   paintCanvas($('bitmap'),w,h,getPalette(true));
   paintCanvas($('cloth'),w,h,getPalette(false));
+  const used=new Set(pixels); const actual=new Set([...used].map(i=>getPalette(true)[i])); $('dims').textContent+=` · ${actual.size} yarn colors`;
 }
 
 function hexRgb(s){ return [parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16)]; }
 function getPalette(exportMode){
-  const bg = exportMode ? '#ffffff' : '#f2efe8';
+  const bg = $('bg').value;
   let m=$('colorMode').value;
-  if(m==='binary') return [bg,$('a').value];
+  if(m==='binary') return [$('b').value,$('a').value];
   if(m==='stage4') return [bg,$('c1').value,$('c2').value,$('c3').value,$('c4').value];
-  return [bg,$('q1').value,$('q2').value,$('q3').value,$('q4').value];
+  return [$('qbg').value,$('q1').value,$('q2').value,$('q3').value,$('q4').value];
 }
 function paintCanvas(canvas,w,h,palette,offset=0,rowsOverride=null){
   canvas.width=w; canvas.height=rowsOverride??h;
